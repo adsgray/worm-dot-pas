@@ -1,0 +1,172 @@
+Program TestWorm;
+
+Uses
+   CRT, WormUnit, Obs, CursorCrap, Misc, Title;
+
+Const
+   MaxObs = 10;
+   
+Type
+   ObsArray = Array [1..MaxObs] Of ObsType;
+   
+Var
+   worm1     : WormType;
+   Score, Level,
+   ObsLeft,
+   ct,
+   backg,
+   delayrate : Integer;
+   Obstacle  : ObsArray;
+
+   
+Procedure Finish;
+Begin
+   TextMode(c80);
+   stbrdr(Black);
+   cursor_on;
+   writeln('Final Level: ',Level);
+   writeln('Final Score: ',Score);
+   readln;
+   Halt;
+End;
+
+Procedure SetCursorSpeed(NewSpeed : Word);
+Begin
+   Port[$60] := $F3;
+   Delay(200);
+   Port[$60] := NewSpeed;
+End;
+
+procedure InitObss;
+begin
+   For ct := 1 To MaxObs Do Begin
+      InitObs(Obstacle[ct]);
+      ShowObs(Obstacle[ct]);
+   End;
+end;
+
+Procedure InitScreen;
+Begin
+   Display;
+   TextMode(259);
+   cursor_off;
+   SetCursorSpeed(0);
+   delayrate := 45;
+   InitWorm(worm1);
+   Randomize;
+   backg:=Random(8) +1;
+   TextBackground(backg);
+   ClrScr;
+   stbrdr(Random(8)+1);
+   InitObss;
+   worm1.Attr:=Random(16) +1;
+   ObsLeft := MaxObs;
+   Score := 0;
+   Level := 1;
+End;
+
+Procedure EatSound;
+begin
+  Sound(150); Delay(50);
+  Sound(300); Delay(50);
+  NoSound;
+end;
+
+Procedure CollisionCheck;
+Begin
+   For ct := 1 To MaxObs Do
+      If obstacle[ct].visible And
+         ((worm1.X = obstacle[ct].X) And
+         (worm1.Y = obstacle[ct].Y)) 
+      Then Begin
+         EatSound;
+         dec(ObsLeft);
+         Inc(Score,Level);
+         hideobs(obstacle[ct],backg);
+         Inc(worm1.Length);
+         If delayrate-2>=5 Then Dec(delayrate,2);
+         obstacle[ct].visible := False;
+      End;
+End;
+
+
+Begin
+   InitScreen;
+   
+   Repeat
+      showworm(worm1);
+      Delay(delayrate);
+      hideworm(worm1,backg);
+      CollisionCheck;
+         if ObsLeft = 0 then begin
+            BackG := random(8) +1;
+            textbackground(backg);
+            ClrScr;
+            ObsLeft := MaxObs;
+            InitObss;
+            Inc(Level);
+         end;
+      
+      If KeyPressed Then begin
+         Case ReadKey Of
+            'd','D' : Inc(delayrate,5);
+            'a','A' : If delayrate - 5 >=5 Then Dec(delayrate,5);
+            'p','P' : While ReadKey = #0 Do;
+            'q','Q' : Finish;
+            'f','F' : worm1.Attr := Random(16) +1;
+            'b','B' : 
+            Begin
+               backg := Random(8) +1;
+               TextBackground(backg);
+               ClrScr;
+               stbrdr(Random(8)+1);
+               For ct:=1 To MaxObs Do
+                  If obstacle[ct].visible Then showobs(obstacle[ct]);
+            End;
+            '+' : If worm1.Length+1<=20 Then Inc(worm1.Length);
+            '-' : If worm1.Length-1>=1 Then Dec(worm1.Length);
+            #0 : Case ReadKey Of
+               {Left}#75:Begin
+                  hideworm(worm1,backg);
+                  If worm1.X>(80-worm1.Length) Then worm1.X := (80-worm1.Length);
+                  worm1.Direction := Left;
+               End;
+               {Right}#77:
+               Begin
+                  hideworm(worm1,backg);
+                  If worm1.X<(worm1.Length+1) Then worm1.X := (worm1.Length+1);
+                  worm1.Direction := Right;
+               End;
+               {Up}#72:
+               Begin
+                  hideworm(worm1,backg);
+                  If worm1.Y>(50-worm1.Length) Then worm1.Y := (50-worm1.Length);
+                  worm1.Direction := UP;
+               End;
+               {Down}#80:
+               Begin
+                  hideworm(worm1,backg);
+                  If worm1.Y<(worm1.Length+1) Then worm1.Y := worm1.Length+1;
+                  worm1.Direction := DOWN;
+               End;
+            End;
+         End;
+      End;
+      
+      Case worm1.Direction Of
+         Left:If worm1.X-1>=1 Then
+            Dec(worm1.X) 
+         Else Finish;
+         Right:If worm1.X+1<80 Then
+            Inc(worm1.X) 
+         Else Finish;
+         UP:If worm1.Y-1>=1 Then
+            Dec(worm1.Y) 
+         Else Finish;
+         DOWN:If worm1.Y+1<50 Then
+            Inc(worm1.Y) 
+         Else Finish;
+      End;
+      
+   Until True = False; {endless}
+End.
